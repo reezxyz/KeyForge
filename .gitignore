@@ -1,6 +1,7 @@
 # Ignore pycache specifically in ui and core
 ui/__pycache__/
 core/__pycache__/
+data
 
 # Environment / virtualenv
 venv/
