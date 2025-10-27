@@ -1,0 +1,29 @@
+{
+    "name": "tes",
+    "actions": [
+        {
+            "type": "press",
+            "key": "A"
+        },
+        {
+            "type": "delay",
+            "duration": 100
+        },
+        {
+            "type": "press",
+            "key": "N"
+        },
+        {
+            "type": "delay",
+            "duration": 100
+        },
+        {
+            "type": "press",
+            "key": "J"
+        },
+        {
+            "type": "delay",
+            "duration": 100
+        }
+    ]
+}

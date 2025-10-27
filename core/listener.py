@@ -41,14 +41,17 @@ class MacroListener:
         profile = load_profile_by_name(profile_name)
         if not profile:
             return
+
         for action in profile.get("actions", []):
-            k = action.get("key")
             if action.get("type") == "press":
-                kb_controller.press(k)
+                kb_controller.press(action["key"])
+                kb_controller.release(action["key"])
             elif action.get("type") == "release":
-                kb_controller.release(k)
-            delay = action.get("delay_ms", 0) / 1000.0
-            time.sleep(delay)
+                kb_controller.release(action["key"])
+            elif action.get("type") == "delay":
+                duration_ms = action.get("duration", 0)
+                time.sleep(duration_ms / 1000.0)  # delay dalam detik
+
 
     def _hook_key(self, key_name):
         """Hook trigger key dengan suppress input asli"""
