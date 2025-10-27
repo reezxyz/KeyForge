@@ -1,31 +1,27 @@
-import os
+# core/profiles.py
 import json
+from pathlib import Path
 
-PROFILES_DIR = "data/profiles"
-
-def save_profile(profile):
-    """Simpan profil makro ke file JSON"""
-    if not os.path.exists(PROFILES_DIR):
-        os.makedirs(PROFILES_DIR)
-    path = os.path.join(PROFILES_DIR, f"{profile['name']}.json")
-    with open(path, "w") as f:
-        json.dump(profile, f, indent=4)
+PROFILES_FILE = Path("data/profiles.json")
 
 def load_profiles():
-    """Load semua profil makro"""
-    profiles = []
-    if not os.path.exists(PROFILES_DIR):
-        os.makedirs(PROFILES_DIR)
-    for file in os.listdir(PROFILES_DIR):
-        if file.endswith(".json"):
-            with open(os.path.join(PROFILES_DIR, file), "r") as f:
-                profiles.append(json.load(f))
-    return profiles
+    if PROFILES_FILE.exists():
+        with open(PROFILES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+def save_profile(profile):
+    profiles = load_profiles()
+    # replace if name exists
+    profiles = [p for p in profiles if p["name"] != profile["name"]]
+    profiles.append(profile)
+    PROFILES_FILE.parent.mkdir(exist_ok=True)
+    with open(PROFILES_FILE, "w", encoding="utf-8") as f:
+        json.dump(profiles, f, indent=4)
 
 def load_profile_by_name(name):
-    """Load profil berdasarkan nama"""
-    path = os.path.join(PROFILES_DIR, f"{name}.json")
-    if os.path.exists(path):
-        with open(path, "r") as f:
-            return json.load(f)
+    profiles = load_profiles()
+    for p in profiles:
+        if p["name"] == name:
+            return p
     return None
