@@ -4,6 +4,43 @@ from ui.macro_editor import MacroEditor
 from ui.keyboard_selector import KeyboardSelector
 from core.listener import MacroListener
 
+# ---------------- Sidebar -----------------
+class Sidebar(ctk.CTkFrame):
+    """Simple sidebar with menu items"""
+    def __init__(self, master, menu_items, command):
+        super().__init__(master, width=200, fg_color="#1f1f1f")
+        self.pack(side="left", fill="y")
+        self.command = command
+        self.buttons = {}
+
+        for item in menu_items:
+            btn = ctk.CTkButton(
+                self, text=item,
+                width=200, height=40,
+                fg_color="#2a2a2a",
+                hover_color="#3a3a3a",
+                corner_radius=0,
+                command=lambda i=item: self.on_click(i)
+            )
+            btn.pack(pady=1)
+            self.buttons[item] = btn
+
+        self.active_item = None
+
+    def on_click(self, item_name):
+        self.set_active(item_name)
+        self.command(item_name)
+
+    def set_active(self, item_name):
+        # update button colors
+        for name, btn in self.buttons.items():
+            if name == item_name:
+                btn.configure(fg_color="#444444")  # active bg
+            else:
+                btn.configure(fg_color="#2a2a2a")
+        self.active_item = item_name
+
+# ---------------- Main App -----------------
 class MainApp(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -12,58 +49,61 @@ class MainApp(ctk.CTk):
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
-        # Listener untuk makro
+        # Listener
         self.listener = MacroListener()
 
-        # --- Frame kiri: Keyboard Selector ---
-        self.left_frame = ctk.CTkFrame(self)
-        self.left_frame.pack(side="left", fill="y", padx=10, pady=10)
-        ctk.CTkLabel(self.left_frame, text="Keyboard Target", font=("Arial", 16, "bold")).pack(pady=5)
+        # Sidebar
+        menu_items = ["Keyboard Selector", "Macro Editor", "Keyboard UI"]
+        self.sidebar = Sidebar(self, menu_items, self.show_frame)
 
-        self.keyboard_selector = KeyboardSelector(
-            self.left_frame,
-            on_select_callback=self.set_target_keyboard
-        )
-        self.keyboard_selector.pack(fill="y", expand=True)
+        # Frame container kanan
+        self.frame_container = ctk.CTkFrame(self)
+        self.frame_container.pack(side="left", fill="both", expand=True, padx=10, pady=10)
 
-        # --- Frame kanan: Keyboard UI + Macro Manager ---
-        self.right_frame = ctk.CTkFrame(self)
-        self.right_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+        # Buat semua frame tapi sembunyikan dulu
+        self.frames = {}
+        self.frames["Keyboard Selector"] = KeyboardSelector(self.frame_container, self.set_target_keyboard)
+        self.frames["Macro Editor"] = MacroEditor(self.frame_container)
+        self.frames["Keyboard UI"] = KeyboardUI(self.frame_container)
 
-        # Tombol buka Macro Editor
-        ctk.CTkButton(self.right_frame, text="📖 Macro Editor", command=self.open_macro_editor).pack(pady=10)
+        for f in self.frames.values():
+            f.pack(fill="both", expand=True)
+            f.pack_forget()  # sembunyikan semua frame awalnya
 
-        # Keyboard UI
-        self.keyboard_ui = KeyboardUI(self.right_frame)
-        self.keyboard_ui.pack(fill="both", expand=True)
+        # Set default frame
+        self.sidebar.set_active("Keyboard Selector")
+        self.show_frame("Keyboard Selector")
 
         # Tombol Start / Stop Listener
-        btn_frame = ctk.CTkFrame(self.right_frame)
-        btn_frame.pack(pady=10)
+        btn_frame = ctk.CTkFrame(self.frame_container)
+        btn_frame.pack(side="bottom", pady=10)
         self.start_btn = ctk.CTkButton(btn_frame, text="▶ Start Listener", command=self.start_listener, state="disabled")
         self.start_btn.pack(side="left", padx=5)
         self.stop_btn = ctk.CTkButton(btn_frame, text="❌ Stop Listener", command=self.stop_listener)
         self.stop_btn.pack(side="left", padx=5)
 
         # Label status
-        self.status_label = ctk.CTkLabel(self.right_frame, text="Listener belum aktif ❌")
-        self.status_label.pack(pady=5)
+        self.status_label = ctk.CTkLabel(self.frame_container, text="Listener belum aktif ❌")
+        self.status_label.pack(side="bottom", pady=5)
 
-    # --- Callback dari KeyboardSelector ---
+    # ---------------- Sidebar callback -----------------
+    def show_frame(self, item_name):
+        for f in self.frames.values():
+            f.pack_forget()
+        frame = self.frames.get(item_name)
+        if frame:
+            frame.pack(fill="both", expand=True)
+
+    # ---------------- KeyboardSelector callback -----------------
     def set_target_keyboard(self, hid_path):
         self.listener.target_device_id = hid_path
         print(f"DEBUG: Listener target_device_id = {hid_path}")
-        # Enable tombol start
         self.start_btn.configure(state="normal")
         self.status_label.configure(text=f"Keyboard dipilih ✅\n{hid_path}")
 
-    # --- Macro Editor ---
-    def open_macro_editor(self):
-        MacroEditor(self)
-
-    # --- Start / Stop Listener ---
+    # ---------------- Listener -----------------
     def start_listener(self):
-        self.keyboard_ui.save_assignments()  # Simpan assignments sebelum start
+        self.frames["Keyboard UI"].save_assignments()  # Simpan assignments sebelum start
         self.listener.load_assignments()
         self.listener.start()
         self.status_label.configure(text="Listener aktif ✅")
