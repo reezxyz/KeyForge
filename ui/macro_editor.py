@@ -58,14 +58,14 @@ class MacroEditor(ctk.CTkFrame):
 
     # --- Tambah Key Action ---
     def add_key_action(self):
-        key = self.key_entry.get().strip().upper()
+        key = self.key_entry.get().strip()
         action_type = self.type_var.get()
 
         if not key:
             messagebox.showerror("Error", "Key harus diisi!")
             return
 
-        action = {"type": action_type, "key": key}
+        action = {"type": action_type, "key": key}  # simpan sesuai input user
         self.actions.append(action)
         self.update_actions_box()
         self.key_entry.delete(0, "end")
