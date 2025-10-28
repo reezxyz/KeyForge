@@ -1,8 +1,7 @@
-# core/listener.py
 import threading
 import json
 from pathlib import Path
-import keyboard  # pip install keyboard
+import keyboard
 from pynput.keyboard import Controller
 from core.profiles import load_profile_by_name
 import time
@@ -14,11 +13,10 @@ kb_controller = Controller()
 class MacroListener:
     def __init__(self, target_device_id=None):
         self.target_device_id = target_device_id
-        self.assignments = {}  # key -> profile_name
+        self.assignments = {}
         self._running = False
         self._lock = threading.Lock()
         self._hook_threads = []
-
         self.load_assignments()
 
     def load_assignments(self):
@@ -33,30 +31,70 @@ class MacroListener:
         with open(ASSIGNMENTS_FILE, "w", encoding="utf-8") as f:
             json.dump(self.assignments, f, indent=4)
 
+    # ---------------- MACRO EXECUTION ----------------
     def _run_macro_for_key(self, key_name):
         profile_name = self.assignments.get(key_name)
         if not profile_name:
             return
+
         profile = load_profile_by_name(profile_name)
         if not profile:
             return
-        for action in profile.get("actions", []):
-            typ = action.get("type")
-            if typ == "press":
-                kb_controller.press(action["key"])
-            elif typ == "release":
-                kb_controller.release(action["key"])
-            elif typ == "delay":
-                dur = action.get("duration", 0) / 1000
-                time.sleep(dur)
-            time.sleep(0.01)  # sedikit jeda antar action
 
+        actions = profile.get("actions", [])
+        i = 0
+        while i < len(actions):
+            act = actions[i]
+            typ = act.get("type")
+
+            # --------- CASE 1: press + delay + release (hold simulation) ----------
+            if (
+                typ == "press"
+                and i + 2 < len(actions)
+                and actions[i + 1]["type"] == "delay"
+                and actions[i + 2]["type"] == "release"
+                and actions[i + 2]["key"] == act["key"]
+            ):
+                key = act["key"]
+                dur = actions[i + 1].get("duration", 0) / 1000
+                self._simulate_hold_with_repeat(key, dur)
+                i += 3
+                continue
+
+            # --------- CASE 2: normal single actions ----------
+            if typ == "press":
+                kb_controller.press(act["key"])
+            elif typ == "release":
+                kb_controller.release(act["key"])
+            elif typ == "delay":
+                time.sleep(act.get("duration", 0) / 1000)
+
+            time.sleep(0.01)
+            i += 1
+
+    def _simulate_hold_with_repeat(self, key, duration, initial_delay=0.4, repeat_interval=0.06):
+        """
+        Meniru perilaku tombol yang ditekan lama (auto-repeat).
+        """
+        # satu input awal
+        kb_controller.press(key)
+        kb_controller.release(key)
+
+        # jeda sebelum repeat
+        if initial_delay > 0:
+            time.sleep(initial_delay)
+
+        # waktu akhir hold
+        end_time = time.time() + max(0, duration - initial_delay)
+        while time.time() < end_time and self._running:
+            kb_controller.press(key)
+            kb_controller.release(key)
+            time.sleep(repeat_interval)
+
+    # ---------------- HOOK SYSTEM ----------------
     def _hook_key(self, key_name):
-        """Hook key dengan suppress supaya tombol asli tidak muncul"""
         def callback(event):
-            if not self._running:
-                return
-            if event.event_type != "down":
+            if not self._running or event.event_type != "down":
                 return
             threading.Thread(target=self._run_macro_for_key, args=(key_name,), daemon=True).start()
 
@@ -73,7 +111,6 @@ class MacroListener:
                 return
             self._running = True
 
-        # hook semua tombol yang memiliki assignment
         for key_name in self.assignments.keys():
             self._hook_key(key_name)
         print("MacroListener aktif ✅")

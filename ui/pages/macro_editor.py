@@ -20,7 +20,7 @@ class MacroEditor(ctk.CTkFrame):
         self.key_entry = ctk.CTkEntry(self, placeholder_text="Key", fg_color="#2c2c3e", text_color="#EEE", border_color="#444466")
         self.key_entry.pack(pady=2, fill="x", padx=10)
 
-        self.type_var = ctk.CTkOptionMenu(self, values=["press", "release", "delay"], fg_color="#2c2c3e", button_color="#444466", button_hover_color="#555577")
+        self.type_var = ctk.CTkOptionMenu(self, values=["press", "delay"], fg_color="#2c2c3e", button_color="#444466", button_hover_color="#555577")
         self.type_var.pack(pady=2, fill="x", padx=10)
 
         self.delay_entry = ctk.CTkEntry(self, placeholder_text="Delay ms (jika delay)", fg_color="#2c2c3e", text_color="#EEE", border_color="#444466")
@@ -55,16 +55,27 @@ class MacroEditor(ctk.CTkFrame):
                 messagebox.showerror("Error", "Delay harus berupa angka!")
                 return
             action = {"type": "delay", "duration": duration}
+            self.actions.append(action)
+
         else:
             if not key:
                 messagebox.showerror("Error", "Key harus diisi!")
                 return
-            action = {"type": action_type, "key": key}
 
-        self.actions.append(action)
+            # Tambahkan aksi press
+            action = {"type": action_type, "key": key}
+            self.actions.append(action)
+
+            # Jika press, otomatis tambahkan release setelahnya
+            if action_type == "press":
+                release_action = {"type": "release", "key": key}
+                self.actions.append(release_action)
+
+        # Bersihkan input setelah tambah
         self.key_entry.delete(0, "end")
         self.delay_entry.delete(0, "end")
         self.update_action_list()
+
 
     def update_action_list(self):
         for lbl in self.action_labels:
